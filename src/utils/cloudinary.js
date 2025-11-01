@@ -16,7 +16,8 @@ const uploadOnCloudinary = async (localFilePath) => {
     });
     //file has been uploaded successfully
 
-    console.log("Fie is uploaded on cloudinary", response.url);
+    // console.log("Fie is uploaded on cloudinary", response.url);
+    fs.unlinkSync(localFilePath)
     return response;
   } catch (error) {
     fs.unlinkSync(localFilePath); // remove the locally saved temp file as the upload operation got failed
@@ -24,13 +25,5 @@ const uploadOnCloudinary = async (localFilePath) => {
   }
 };
 
-cloudinary.v2.uploader
-  .upload("dog.mp4", {
-    resource_type: "video",
-    public_id: "my_dog",
-    overwrite: true,
-    notification_url: "https://mysite.example.com/notify_endpoint",
-  })
-  .then((result) => console.log(result));
 
   export {uploadOnCloudinary}
