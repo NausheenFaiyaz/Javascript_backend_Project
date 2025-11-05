@@ -251,7 +251,7 @@ const changeCurrentPassword = asyncHandler(async (req, res) => {
 const getCurrentUser = asyncHandler(async (req, res) => {
   return res
     .status(200)
-    .json(200, req.user, "Current User Fetched Successfully");
+    .json(new ApiResponse(200, req.user, "Current User Fetched Successfully"));
 });
 
 const updatedAccountDetails = asyncHandler(async (req, res) => {
@@ -283,6 +283,8 @@ const updateUserAvatar = asyncHandler(async (req, res) => {
   if (!avatarLocalPath) {
     throw new ApiError(400, "Avatar File is missing");
   }
+
+  //TODO: delete old image
 
   const avatar = await uploadOnCloudinary(avatarLocalPath);
 
