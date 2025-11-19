@@ -4,7 +4,7 @@ import { User } from "../models/user.model.js";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
-import { uploadOnCloudinary } from "../utils/cloudinary.js";
+import { uploadOnCloudinary, deleteOnCloudinary } from "../utils/cloudinary.js";
 
 const getAllVideos = asyncHandler(async (req, res) => {
   const { page = 1, limit = 10, query, sortBy, sortType, userId } = req.query;
@@ -107,25 +107,29 @@ const publishAVideo = asyncHandler(async (req, res) => {
     throw new ApiError(400, "thumbnailLocalPath is required");
   }
 
-  const videoUpload = await uploadOnCloudinary(videoFileLocalPath);
-  const thumbnailUpload = await uploadOnCloudinary(thumbnailLocalPath);
+  const videoFile = await uploadOnCloudinary(videoFileLocalPath);
+  const thumbnail = await uploadOnCloudinary(thumbnailLocalPath);
 
-  if (!videoUpload) {
+  console.log(videoFile, thumbnail);
+
+  if (!videoFile) {
     throw new ApiError(400, "Video is required");
   }
 
-  if (!thumbnailUpload) {
+  if (!thumbnail) {
     throw new ApiError(400, "Thumbnail is required");
   }
 
   const video = await Video.create({
     title,
     description,
-    duration: video.duration || 0,
-    videoFile: videoUpload.url,
-    thumbnail: thumbnailUpload.url,
+    duration: videoFile.duration || 0,
+    videoFile: videoFile.url,
+    thumbnail: thumbnail.url,
     owner: req.user._id,
   });
+
+  console.log(video);
 
   const videoUploaded = await Video.findById(video._id);
   if (!videoUploaded) {
@@ -273,6 +277,69 @@ const getVideoById = asyncHandler(async (req, res) => {
 const updateVideo = asyncHandler(async (req, res) => {
   const { videoId } = req.params;
   //TODO: update video details like title, description, thumbnail
+  const { title, description } = req.body;
+
+  if (!isValidObjectId(videoId)) {
+    throw new ApiError(400, "Invalid videoId");
+  }
+
+  if (!(title && description)) {
+    throw new ApiError(400, "Title and description are required");
+  }
+
+  const video = await Video.findById(videoId);
+
+  if (!video) {
+    throw new ApiError(404, "Video Not Found");
+  }
+
+  if (video.owner.toString() !== req.user._id.toString()) {
+    throw new ApiError(
+      403,
+      "User Not authorized only owner can edit this video"
+    );
+  }
+
+  // New thumbnail local path
+  const thumbnailLocalPath = req.file?.path;
+
+  let thumbnailURL = video.thumbnail;
+
+  if (thumbnailLocalPath) {
+    // Upload the new thumbnail
+    const thumbnail = await uploadOnCloudinary(thumbnailLocalPath);
+
+    if (!thumbnail) {
+      throw new ApiError(500, "Error while uploading thumbnail");
+    }
+
+    // Delete old thumbnail from Cloudinary
+    if (video.thumbnail) {
+      await deleteOnCloudinary(oldThumbnailURL);
+    }
+
+    thumbnailURL = thumbnail.url;
+  }
+
+  const updatedVideo = await Video.findByIdAndUpdate(
+    videoId,
+    {
+      $set: {
+        title,
+        description,
+        thumbnail: thumbnailURL,
+      },
+    },
+    { new: true }
+  );
+
+  if (!updatedVideo) {
+    throw new ApiError(500, "Failed to update video");
+  }
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, updatedVideo, "Video updated successfully"));
 });
 
 const deleteVideo = asyncHandler(async (req, res) => {
