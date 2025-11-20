@@ -382,11 +382,52 @@ const deleteVideo = asyncHandler(async (req, res) => {
 
   return res
     .status(200)
-    .json(new ApiResponse(200, "Video Successfully Deleted"));
+    .json(new ApiResponse(200, {}, "Video Successfully Deleted"));
 });
 
 const togglePublishStatus = asyncHandler(async (req, res) => {
   const { videoId } = req.params;
+
+  if (!isValidObjectId(videoId)) {
+    throw new ApiError(400, "Invalid VideoId");
+  }
+
+  const video = await Video.findById(videoId);
+
+  if (!video) {
+    throw new ApiError(404, "Video Not Found");
+  }
+
+  if (video.owner.toString() !== req.user._id.toString()) {
+    throw new ApiError(
+      403,
+      "User Not authorized only owner can edit this video"
+    );
+  }
+
+  const toggleVideoPublish = await Video.findByIdAndUpdate(
+    videoId,
+    {
+      $set: {
+        isPublished: !video.isPublished,
+      },
+    },
+    { new: true }
+  );
+
+  if (!toggleVideoPublish) {
+    throw new ApiError(500, "Failed to toggle video publish status");
+  }
+
+  return res
+    .status(200)
+    .json(
+      new ApiResponse(
+        200,
+        { isPublished: toggleVideoPublish.isPublished },
+        "Video pubish toggle Sussessfully"
+      )
+    );
 });
 
 export {
