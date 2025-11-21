@@ -106,7 +106,7 @@ const loginUser = asyncHandler(async (req, res) => {
   // send cookie
 
   const { email, userName, password } = req.body;
-  console.log(email);
+  // console.log(email);
 
   if (!userName && !email) {
     throw new ApiError(400, "Username or Email is required");
@@ -399,7 +399,7 @@ const getUserChannelProfile = asyncHandler(async (req, res) => {
   if (!channel?.length) {
     throw new ApiError(404, "Channel doesn't exists");
   }
-  console.log(channel);
+  // console.log(channel);
 
   return res
     .status(200)
