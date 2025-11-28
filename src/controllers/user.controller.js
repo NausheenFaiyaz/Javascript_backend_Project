@@ -1,7 +1,7 @@
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiError } from "../utils/ApiError.js";
 import { User } from "../models/user.model.js";
-import { uploadOnCloudinary } from "../utils/cloudinary.js";
+import { uploadOnCloudinary, deleteOnCloudinary } from "../utils/cloudinary.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import jwt from "jsonwebtoken";
 import mongoose from "mongoose";
@@ -293,6 +293,8 @@ const updateUserAvatar = asyncHandler(async (req, res) => {
     throw new ApiError(400, "Error while uploading on avatar");
   }
 
+  const oldUser = await User.findById(req.user._id).select("avatar");
+
   const user = await User.findByIdAndUpdate(
     req.user?._id,
     {
@@ -302,6 +304,10 @@ const updateUserAvatar = asyncHandler(async (req, res) => {
     },
     { new: true }
   ).select("-password");
+
+  if (oldUser.avatar) {
+    await deleteOnCloudinary(oldUser.avatar);
+  }
 
   return res
     .status(200)
@@ -321,6 +327,8 @@ const updateUserCoverImage = asyncHandler(async (req, res) => {
     throw new ApiError(400, "Error while uploading on coverImage");
   }
 
+  const oldUser = await User.findById(req.user._id).select("coverImage");
+
   const user = await User.findByIdAndUpdate(
     req.user?._id,
     {
@@ -330,6 +338,10 @@ const updateUserCoverImage = asyncHandler(async (req, res) => {
     },
     { new: true }
   ).select("-password");
+
+  if (oldUser.coverImage) {
+    await deleteOnCloudinary(oldUser.coverImage);
+  }
 
   return res
     .status(200)
@@ -375,7 +387,12 @@ const getUserChannelProfile = asyncHandler(async (req, res) => {
         },
         isSubscribed: {
           $cond: {
-            if: { $in: [new mongoose.Types.ObjectId(req.user._id), "$subscribers.subscriber"] },
+            if: {
+              $in: [
+                new mongoose.Types.ObjectId(req.user._id),
+                "$subscribers.subscriber",
+              ],
+            },
             then: true,
             else: false,
           },
@@ -392,7 +409,7 @@ const getUserChannelProfile = asyncHandler(async (req, res) => {
         channelsSubscribedToCount: 1,
         avatar: 1,
         coverImage: 1,
-        subscribers:"$subscribers.subscriber"
+        subscribers: "$subscribers.subscriber",
       },
     },
   ]);
